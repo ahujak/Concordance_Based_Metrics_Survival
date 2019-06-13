@@ -1,5 +1,5 @@
 # Concordance_Based_Metrics_Survival
-In this project, we implement joint concordance index (from https://arxiv.org/pdf/1810.11207.pdf) and concordance index (Wolbers et.al.). 
+In this project, we implement joint concordance index (from https://arxiv.org/pdf/1810.11207.pdf) and concordance index (Wolbers et.al.). An application to compute joint cnocordance index is https://mlinterpreter.shinyapps.io/concordance/. 
 ## Cindex_estimator_efficient: function to compute the concordance index (from Wolbers) 
 Input: Prediction vector for the event type of interest (risk predicted by the model for the event type of interest), 
 
