@@ -1,0 +1,649 @@
+---
+title: "New_Cindex"
+author: "Kartik Ahuja"
+date: "9/15/2017"
+output: html_document
+
+
+
+##### Cindex estimation
+
+# Input: Prediction vector for the event type of interest (risk predicted by the model for the event type of interest), Time_survival: time-to-event data for each subject,  Censoring: censoring information for each subject, Cause: event type of interest, Time: time horizon at which c-index is computed
+
+# Output: Concordance index
+
+
+
+```{r}
+Cindex_estimator_efficient =  function(Prediction, Time_survival, Censoring, Cause, Cause_int, Time){
+n = length(Prediction)
+A = matrix(0, nrow=n, ncol=n)
+B = matrix(0, nrow=n, ncol=n)
+Q = matrix(0, nrow=n, ncol=n)
+N_t = matrix(0, nrow=n, ncol=n)
+Num_mat = matrix(0, nrow=n, ncol=n)
+Den_mat = matrix(0, nrow=n, ncol=n)
+
+Num=0
+Den=0
+for (i in  1:n){
+A[i,which(Time_survival[i] < Time_survival)] =1 
+B[i, intersect(intersect(which((Time_survival[i] >= Time_survival)), which(Cause!=Cause_int) ), which(Censoring==1))] = 1
+Q[i,which(Prediction[i]>Prediction)]=1
+}
+
+for (i in 1:n){
+if(Time_survival[i]<=Time && Cause[i]==Cause_int && Censoring[i]==1){
+N_t[i,] = 1
+}
+}
+
+Num_mat = (A+B)*Q*N_t
+Den_mat = (A+B)*N_t
+
+Num = sum(Num_mat)
+Den = sum(Den_mat)
+
+return(Num/Den)
+
+}
+```
+
+
+
+##### Joint Cindex estimation
+
+# Input: Prediction matrix: prediction vector for each event type stacked into a matrix, Time_survival: time-to-event data for each subject,  Censoring: censoring information for each subject, Cause: event type of interest, Time: time horizon at which c-index is computed, type_estimator: 'naive' or 'weighted'
+
+# Output: Concordance index
+
+
+#### Joint concordance index estimation
+```{r}
+JCindex_estimator_combined =  function(Prediction_matrix, Time_survival, Censoring, Cause,  Time, Cause_set, type_estimator){
+n = dim(Prediction_matrix)[1]
+m = dim(Prediction_matrix)[2]
+l  =length(Cause_set)
+A = array(0, c(n,n,l))
+B = array(0, c(n,n,l))
+Q = array(0, c(n,n,l))
+N_t = array(0, c(n,n,l))
+Num_mat = array(0, c(n,n,l))
+Den_mat = array(0, c(n,n,l))
+Num=0
+Den=0
+o=1
+
+
+
+
+
+
+
+if(type_estimator=='naive'){
+
+for (Cause_int in Cause_set){
+for (i in  1:n){
+A[i,which(Time_survival[i] < Time_survival),o] =1
+B[i, intersect(intersect(which(Time_survival[i] >= Time_survival), which(Cause!=Cause_int)), which(Censoring==1)),o] =1
+
+S = setdiff(Cause_set, c(Cause_int))
+# print (S)f
+max = -10
+for (s in 1:length(S)){
+if(Prediction_matrix[i,S[s]]>=max){
+max = Prediction_matrix[i,S[s]]
+}
+}
+if((Prediction_matrix[i, Cause_int]>max)){
+Q[i, which((Prediction_matrix[i, Cause_int]>Prediction_matrix[, Cause_int]))  , o] = 1
+}
+
+}
+o = o + 1
+}
+o = 1
+for (Cause_int in Cause_set){
+for (i in 1:n){
+if(Time_survival[i]<=Time && Cause[i]==Cause_int && Censoring[i]==1){
+N_t[i,,o] = 1
+}
+
+}
+o =o +1
+}
+
+
+Num = 0
+Den = 0
+o=1
+Est = rep(0, l)
+ESTIMATOR  = 0
+for (cause_int in Cause_set){
+Num_mat[,,o] = (A[,,o]+B[,,o])*Q[,,o]*N_t[,,o]
+Den_mat[,,o] = (A[,,o]+B[,,o])*N_t[,,o]
+
+
+Num = Num+sum(Num_mat[,,o])
+Den = Den+sum(Den_mat[,,o])
+
+
+o = o+1
+}
+
+
+ESTIMATOR  =  Num/Den
+
+
+
+return(ESTIMATOR)
+}
+
+
+
+if(type_estimator=='censored'){
+Win1 = array(1, c(n,n))
+Win2 = array(1, c(n,n))
+for (Cause_int in Cause_set){
+for (i in  1:n){
+A[i,which(Time_survival[i] < Time_survival),o] =1
+B[i, intersect(intersect(which(Time_survival[i] >= Time_survival), which(Cause!=Cause_int)), which(Censoring==1)),o] =1
+
+S = setdiff(Cause_set, c(Cause_int))
+# print (S)f
+max = -10
+for (s in 1:length(S)){
+if(Prediction_matrix[i,S[s]]>=max){
+max = Prediction_matrix[i,S[s]]
+}
+}
+if((Prediction_matrix[i, Cause_int]>max)){
+Q[i, which((Prediction_matrix[i, Cause_int]>Prediction_matrix[, Cause_int]))  , o] = 1
+}
+
+}
+o = o + 1
+}
+# print (sum(Q))
+o = 1
+for (Cause_int in Cause_set){
+for (i in 1:n){
+if(Time_survival[i]<=Time && Cause[i]==Cause_int && Censoring[i]==1){
+N_t[i,,o] = 1
+}
+
+}
+o =o +1
+}
+
+
+
+
+
+
+Sf = survfit(Surv(Time_survival, as.numeric(!Censoring))~1)
+
+Sf1  = as.vector(summary(Sf))
+
+Time_vec = Sf1$time
+time_index2_v = rep(1,n)
+
+
+for (j in 1:n){
+time_index2_v[j] = which.min(abs(Time_vec-Time_survival[j]))
+}
+for (i in 1:n){
+
+time_index1 = which.min(abs(Time_vec-Time_survival[i]))
+
+
+if (Sf1$surv[time_index1]!=0){
+Win1[i,]   = (1/(Sf1$surv[time_index1]*(Sf1$surv[time_index1])))*rep(1,n)}
+Smin = min(Sf$surv[which(Sf$surv>0)])
+if (Sf1$surv[time_index1]==0){
+Win1[i,]   = (1/(Smin*(Smin)))*rep(1,n)}
+
+if(Sf1$surv[time_index1]!=0){
+ind_t = which(Sf1$surv[time_index2_v]!=0)
+Win2[i,ind_t]   = 1/(Sf1$surv[time_index1]*(Sf1$surv[time_index2_v[ind_t]]))
+ind_t1 = which(Sf1$surv[time_index2_v]==0)
+Win2[i,ind_t1]   = (1/(Sf1$surv[time_index1]))*(1/(Smin))*rep(1,length(ind_t1))
+
+} 
+
+if(Sf1$surv[time_index1]==0){
+ind_t = which(Sf1$surv[time_index2_v]!=0)
+Win2[i,ind_t]   = (1/(Smin))*(1/(Sf1$surv[time_index2_v[ind_t]]))
+ind_t1 = which(Sf1$surv[time_index2_v]==0)
+Win2[i,ind_t1]   = (1/(Smin))*(1/(Smin))*rep(1,length(ind_t1))
+
+}
+
+}
+
+
+
+
+Num = 0
+Den = 0
+o=1
+Est = rep(0, l)
+ESTIMATOR  = 0
+for (cause_int in Cause_set){
+Num_mat[,,o] = (A[,,o]*Win1+B[,,o]*Win2)*Q[,,o]*N_t[,,o]
+Den_mat[,,o] = (A[,,o]*Win1+B[,,o]*Win2)*N_t[,,o]
+
+
+Num = Num+sum(Num_mat[,,o])
+Den = Den+sum(Den_mat[,,o])
+
+
+o = o+1
+}
+
+
+ESTIMATOR  =  Num/Den
+
+
+
+return(ESTIMATOR)
+}
+
+}
+```
+
+
+
+
+```{r}
+library(survival)
+library(cmprsk)
+library(riskRegression)
+```
+
+
+
+
+Synthetic Experiments
+
+
+## This block below simulates the synthetic experiments in the manuscript. Table 2, 3 in the main manuscript and the Table 1 in the Appendix can be derived using the below script.
+```{r}
+
+############### SETUP 1 Efficient
+### Uncensored 
+
+O =10
+N  =10000                                # No. of data points
+Xvec = rnorm(N, 0, 1)                    #Feature of N sbujectes
+lambda_v = list(c(1,2))
+beta_v   = list(c(1,1))
+L1       = length(lambda_v)
+L2       = length(beta_v)
+Models  = c('Cox', 'Fine-Gray', 'Linear', 'Exponential', 'Random')
+# Models  = c('Cox')
+M              = length(Models)
+Acc            = array(0, c(O,L1,L2,M))
+C_index_cause1 = array(0, c(O,L1,L2,M))
+C_index_cause2 = array(0, c(O,L1,L2,M))
+JC_index       = array(0, c(O,L1,L2,M))
+JC_index1       = array(0, c(O,L1,L2,M))
+
+for (out in 1:O){
+for (i in 1:L1){
+for (j in 1:L2){
+lambda  = lambda_v[[i]]
+beta    = beta_v[[j]]                          # Latent time coefficients
+lambda_x1 = lambda[1]*exp(beta[1]*Xvec)  # Arrival rate for cause 1
+lambda_x2 = lambda[2]*exp(beta[2]*(cos(Xvec))) # Arrival rate for cause 2
+# lambda_x2 = lambda[2]*exp(beta[2]*(Xvec))
+T1  = rexp(N, rate = lambda_x1)          # Latent variable for time for cause 1
+T2  = rexp(N, rate=lambda_x2)            # Latent variable for time for cause 2
+Tm = rep(0,N)                             
+Outcome_uncens = rep(0,N)
+for (s in 1:N){
+Tm[s] = min(T1[s],T2[s])
+Outcome_uncens[s] = which.min(c(T1[s],T2[s]))
+}
+Censoring = rep(1,N)
+Cause = rep(1,N)
+Cens1 = rep(0,N)
+Cens2 = rep(0,N)
+
+Cause[which(Outcome_uncens==1)] = 1
+Cause[which(Outcome_uncens==2)] = 2
+Cens1[which(Outcome_uncens==1)] =1
+Cens2[which(Outcome_uncens==2)] =1
+
+Data = as.data.frame(cbind(Xvec,Tm,Cause, Cens1, Cens2,  Censoring))
+colnames(Data) = c('x','Tobs','Cause', 'Cens1', 'Cens2', 'Censoring')
+
+Median_time = as.numeric(summary(Tm)[3])
+sev5_qtile = as.numeric(summary(Tm)[5])
+Th =  c(sev5_qtile)
+# Th = Median_time
+# Th  = max(Tm)
+##### MODELS
+
+for (r in 1:M){
+
+
+if(Models[r]=='Cox'){
+fit_csc = CSC(Hist(Tobs, Cause, cens.code="0")~x , data=Data)
+predict_csc1 = predict(fit_csc,Data, cause=1, times=Th)
+predict_csc2 = predict(fit_csc,Data, cause=2, times=Th)
+Predict_matrix = cbind(predict_csc1$absRisk[,1], predict_csc2$absRisk[,1])}
+
+
+
+if(Models[r]=='Fine-Gray'){
+ftime = as.vector(Data$Tobs)
+fstatus=  as.vector(Data$Cause)
+Predict_matrix = matrix(0, nrow=dim(Data)[1], ncol=2)
+fit_crr1 = crr(ftime,fstatus,cov1=Data[,'x'], failcode=1, cencode=0)
+fit_crr2 = crr(ftime,fstatus,cov1=Data[,'x'], failcode=2, cencode=0)
+
+
+z=1
+for (w in 1:N){
+
+Predict_m  = predict(fit_crr1, cov1=Data[w,'x'])
+Ind = which.min(abs(Predict_m[,1]-Th))
+Predict_matrix[w,1] = (predict(fit_crr1, Data[w,'x'])[Ind,2])
+z = z+1
+}
+
+
+z=1
+for (w in 1:N){
+
+Predict_m  = predict(fit_crr2, cov1=Data[w,'x'])
+Ind = which.min(abs(Predict_m[,1]-Th))
+Predict_matrix[w,2] = (predict(fit_crr2, Data[w,'x'])[Ind,2])
+z = z+1
+}
+
+}
+
+
+
+
+
+# Predict_matrix = cbind(Xvec,Xvec^2)
+
+#
+
+if(Models[r] == 'Linear'){
+Predict_matrix = cbind(Xvec,Xvec*2)}
+
+
+if(Models[r] == 'Exponential'){
+Predict_matrix = cbind(exp(Xvec), 2*exp(-abs(Xvec)))
+# Predict_matrix = cbind(exp(sqrt(Xvec)), 2*exp(sqrt(Xvec)))
+#
+# Predict_matrix = cbind(exp(Xvec)+1.5, 1.25*exp(Xvec))
+# Predict_matrix = cbind(exp(Xvec)+0.5, 2*exp(Xvec))}
+}
+
+
+if(Models[r]=='Random'){
+p1 = runif(length(Xvec))
+Predict_matrix = cbind(p1,1-p1)
+}
+
+
+
+####### EVALUATE MODELS
+Predict_cause  = rep(0,dim(Predict_matrix)[1])
+Predict_cause[which(Predict_matrix[,1]>=Predict_matrix[,2])] = 1
+Predict_cause[which(Predict_matrix[,1]<Predict_matrix[,2])] = 2
+Accuracy = rep(0,dim(Predict_matrix)[1])
+Accuracy[which(Predict_cause==Data$Cause)] =1
+
+
+Acc[out,i,j,r] = sum(Accuracy[which(Tm<Th)])/length(Accuracy[which(Tm<Th)])
+
+
+
+C_index_cause1[out,i,j,r] = Cindex_estimator_efficient(Predict_matrix[,1], Data$Tobs, Data$Censoring, Data$Cause, 1, Th)
+
+C_index_cause2[out,i,j,r] =   Cindex_estimator_efficient(Predict_matrix[,2], Data$Tobs, Data$Censoring, Data$Cause, 2, Th)
+
+# JC_index[i,j,r]       = JCindex_estimator_efficient(Predict_matrix, Data$Tobs, Data$Censoring, Data$Cause, Th, c(1,2))
+JC_index1[out,i,j,r]       = JCindex_estimator_combined(Predict_matrix, Data$Tobs, Data$Censoring, Data$Cause, Th, c(1,2), 'naive')
+}
+}
+}
+}
+
+print('Censored start')
+################## Censored
+
+Niter=100   # Number of experiments
+# N_v     = c(500, 1000)
+N_v     = c(1000,5000)
+# N_v = 2500
+# N_v     = 250
+# N_v = 250
+# lambda_cens_o_v = 3
+lambda_cens_o_v = c(5,17)
+# lambda_cens_o_v = 10
+L4               = length(lambda_cens_o_v)
+L3      = length(N_v)
+
+gamma_v =c(1)
+D= length(gamma_v)
+M                    = length(Models)
+Acc_array            =  array(0, c(L1,L2,L3,L4,D,M,Niter))
+C_index_cause1_array = array(0, c(L1,L2,L3,L4, D,M, Niter))
+C_index_cause2_array = array(0, c(L1,L2,L3,L4, D,M, Niter))
+C_index_cause1_array1 = array(0, c(L1,L2,L3,L4, D,M, Niter))
+C_index_cause2_array1 = array(0, c(L1,L2,L3,L4, D,M, Niter))
+JC_index_array       = array(0, c(L1,L2,L3,L4,D,M, Niter))
+JC_index_array1       = array(0, c(L1,L2,L3,L4,D,M, Niter))
+JC_index_array2       = array(0, c(L1,L2,L3,L4,D,M, Niter))
+RMSE1   = array(0, c(L1,L2,L3,L4,D,M))
+BIAS1   = array(0, c(L1,L2,L3,L4,D,M))
+SE1     = array(0, c(L1,L2,L3,L4,D,M))
+
+
+
+RMSE2   = array(0, c(L1,L2,L3,L4,D,M))
+BIAS2   = array(0, c(L1,L2,L3,L4,D,M))
+SE2     = array(0, c(L1,L2,L3,L4,D,M))
+
+RMSE_Acc   = array(0, c(L1,L2,L3,L4,D,M))
+for (i in 1:L1){
+for (j in 1:L2){
+for (u in 1:L3){
+for (v in 1:L4){
+for (d in 1:D){
+for (m in 1:Niter){
+
+N           =N_v[u]
+Xvec        = rnorm(N, 0, 1)
+lambda      = lambda_v[[i]]
+beta        = beta_v[[j]]    
+lambda_x1   = lambda[1]*exp(beta[1]*Xvec)
+
+lambda_x2   = lambda[2]*exp(beta[2]*cos(Xvec))
+# lambda_x2   = lambda[2]*exp(beta[2]*Xvec)
+T1          = rexp(N, rate = lambda_x1)
+T2          = rexp(N, rate=lambda_x2)
+
+Tm = rep(0,N)
+Outcome_uncens = rep(0,N)
+for (s in 1:N){
+Tm[s] = min(T1[s],T2[s])
+Outcome_uncens[s] = which.min(c(T1[s],T2[s]))
+}
+Cens =  rep(1,N)
+Cause = rep(1,N)
+Cens1 = rep(0,N)
+Cens2 = rep(0,N)
+
+
+Cause[which(Outcome_uncens==1)] = 1
+Cause[which(Outcome_uncens==2)] = 2
+Cens1[which(Outcome_uncens==1)] =1
+Cens2[which(Outcome_uncens==2)] =1
+
+Censoring = rep(1,N)
+
+gamma_1 = gamma_v[d]
+lambda_cens_o = lambda_cens_o_v[v]
+lambda_cens = lambda_cens_o*exp(gamma_1*Xvec)
+Cens_time = rexp(N,lambda_cens_o)
+Tobs = rep(0,N)
+Outcome_cens = rep(0,N)
+for (s in 1:N){
+Tobs[s] = min(c(T1[s],T2[s], Cens_time[s]))
+Outcome_cens[s] = which.min(c(T1[s],T2[s], Cens_time[s]))
+}
+
+Censoring[which(Outcome_cens==3)] = 0
+Cause[which(Outcome_cens==3)] = 0
+Data = as.data.frame(cbind(Xvec,Tm,Cause, Cens1, Cens2,  Censoring))
+colnames(Data) = c('x','Tobs','Cause', 'Cens1', 'Cens2', 'Censoring')
+
+
+##### MODELS
+
+for (r in 1:M){
+
+
+if(Models[r]=='Cox'){
+fit_csc = CSC(Hist(Tobs, Cause, cens.code="0")~x , data=Data)
+predict_csc1 = predict(fit_csc,Data, cause=1, times=c(Th))
+predict_csc2 = predict(fit_csc,Data, cause=2, times=c(Th))
+Predict_matrix = cbind(predict_csc1$absRisk[,1], predict_csc2$absRisk[,1])}
+
+
+
+if(Models[r]=='Fine-Gray'){
+ftime = as.vector(Data$Tobs)
+fstatus=  as.vector(Data$Cause)
+Predict_matrix = matrix(0, nrow=dim(Data)[1], ncol=2)
+fit_crr1 = crr(ftime,fstatus,cov1=Data[,'x'], failcode=1, cencode=0)
+fit_crr2 = crr(ftime,fstatus,cov1=Data[,'x'], failcode=2, cencode=0)
+
+
+z=1
+for (w in 1:N){
+
+Predict_m  = predict(fit_crr1, cov1=Data[w,'x'])
+Ind = which.min(abs(Predict_m[,1]-Th))
+Predict_matrix[w,1] = predict(fit_crr1, Data[w,'x'])[Ind,2]
+z = z+1
+}
+
+
+z=1
+for (w in 1:N){
+
+Predict_m  = predict(fit_crr2, cov1=Data[w,'x'])
+Ind = which.min(abs(Predict_m[,1]-Th))
+Predict_matrix[w,2] = predict(fit_crr2, Data[w,'x'])[Ind,2]
+z = z+1
+}
+
+}
+
+
+
+
+
+# Predict_matrix = cbind(Xvec,Xvec^2)
+
+#
+
+if(Models[r] == 'Linear'){
+Predict_matrix = cbind(Xvec,Xvec*2)}
+
+
+if(Models[r] == 'Exponential'){
+Predict_matrix = cbind(exp(Xvec), 2*exp(-abs(Xvec)))
+
+#
+# Predict_matrix = cbind(exp(Xvec)+1.5, 1.25*exp(Xvec))
+# Predict_matrix = cbind(exp(Xvec)+0.5, 2*exp(Xvec))}
+}
+
+
+if(Models[r]=='Random'){
+p1 = runif(length(Xvec))
+Predict_matrix = cbind(p1,1-p1)
+Predict_cause  = rep(0,dim(Predict_matrix)[1])}
+
+
+
+####### EVALUATE MODELS
+Predict_cause[which(Predict_matrix[,1]>Predict_matrix[,2])] = 1
+Predict_cause[which(Predict_matrix[,1]<Predict_matrix[,2])] = 2
+Accuracy = rep(0,dim(Predict_matrix)[1])
+Accuracy[which(Predict_cause==Data$Cause)] =1
+
+
+Acc_array[i,j,u,v,d,r,m] = sum(Accuracy[which(Tm<Th)])/length(Accuracy[which(Tm<Th)])
+
+
+C_index_cause1_array[i,j,u,v,d,r,m] = Cindex_estimator_efficient(Predict_matrix[,1], Data$Tobs, Data$Censoring, Data$Cause, 1, Th)
+
+C_index_cause2_array[i,j,u,v,d,r,m] =   Cindex_estimator_efficient(Predict_matrix[,2], Data$Tobs, Data$Censoring, Data$Cause, 2, Th)
+
+
+JC_index_array1[i,j,u,v,d,r,m]       = JCindex_estimator_combined(Predict_matrix, Data$Tobs, Data$Censoring, Data$Cause, Th, c(1,2), 'naive')
+#
+JC_index_array2[i,j,u,v,d,r,m]       = JCindex_estimator_combined(Predict_matrix, Data$Tobs, Data$Censoring, Data$Cause, Th, c(1,2), 'censored')
+
+
+}
+
+
+
+}
+}
+}
+}
+}
+}
+
+
+
+
+for (i in 1:L1){
+for (j in 1:L2){
+for (u in 1:L3){
+for (v in 1:L4){
+for (d in 1:D){
+for (r in 1:M){
+
+RMSE1[i,j,u,v,d,r] =sqrt(sum((JC_index_array1[i,j,u,v,d,r,]-mean(JC_index1[,i,j,r]))^2)/Niter)
+BIAS1[i,j,u,v,d,r] =sum((JC_index_array1[i,j,u,v,d,r,]-mean(JC_index1[,i,j,r])))/Niter
+SE1[i,j,u,v,d,r] =sqrt(var(JC_index_array1[i,j,u,v,d,r,]))
+
+
+RMSE2[i,j,u,v,d,r] =sqrt(sum((JC_index_array2[i,j,u,v,d,r,]-mean(JC_index1[,i,j,r]))^2)/Niter)
+BIAS2[i,j,u,v,d,r] =sum((JC_index_array2[i,j,u,v,d,r,]-mean(JC_index1[,i,j,r])))/Niter
+SE2[i,j,u,v,d,r] =sqrt(var(JC_index_array2[i,j,u,v,d,r,]))
+
+}
+
+
+
+
+}
+}
+}
+}
+}
+
+
+
+
+
+
+
+
+```
+
