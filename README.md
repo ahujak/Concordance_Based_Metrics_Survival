@@ -29,4 +29,4 @@ Time: time horizon at which c-index is computed,
 
 type_estimator: 'naive' or 'weighted'
 
-Output: Concordance index
+Output: Joint Concordance index
