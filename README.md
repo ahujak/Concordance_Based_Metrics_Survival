@@ -4,7 +4,8 @@ In this project, we implement joint concordance index (from https://arxiv.org/pd
 Functions defined below can be found in New_Cindex_paper_upload.Rmd
 
 ## Cindex_estimator_efficient: function to compute the concordance index (from Wolbers) 
-Input: Prediction vector for the event type of interest (risk predicted by the model for the event type of interest), 
+### Input: 
+Prediction vector for the event type of interest (risk predicted by the model for the event type of interest), 
 
 Time_survival: time-to-event data for each subject,  
 
@@ -14,11 +15,12 @@ Cause: event type of interest,
 
 Time: time horizon at which c-index is computed
 
-Output: Concordance index
+### Output: 
+Concordance index
 
-## JCindex_estimator_combined 
+## JCindex_estimator_combined: function to compute the concordance index (from https://arxiv.org/pdf/1810.11207.pdf)
 
-### Input: function to compute the concordance index (from https://arxiv.org/pdf/1810.11207.pdf)
+### Input: 
 Prediction matrix: prediction vector for each event type stacked into a matrix, 
 
 Time_survival: time-to-event data for each subject,  
