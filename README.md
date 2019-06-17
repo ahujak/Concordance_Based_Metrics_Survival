@@ -18,8 +18,7 @@ Output: Concordance index
 
 ## JCindex_estimator_combined 
 
-Input: 
-
+### Input: function to compute the concordance index (from https://arxiv.org/pdf/1810.11207.pdf)
 Prediction matrix: prediction vector for each event type stacked into a matrix, 
 
 Time_survival: time-to-event data for each subject,  
@@ -32,7 +31,8 @@ Time: time horizon at which c-index is computed,
 
 type_estimator: 'naive' or 'weighted'
 
-Output: Joint Concordance index
+### Output: 
+Joint Concordance index
 
 ## References
 
