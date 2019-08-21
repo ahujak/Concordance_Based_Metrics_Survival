@@ -3,7 +3,7 @@ In this project, we implement joint concordance index (from https://arxiv.org/pd
 
 Functions defined below can be found in New_Cindex_paper_upload.Rmd
 
-## Cindex_estimator_efficient: function to compute the concordance index (from Wolbers) 
+## Cindex_estimator_efficient: function to compute the concordance index (from Wolbers et.al.) 
 ### Input: 
 Prediction vector for the event type of interest (risk predicted by the model for the event type of interest), 
 
