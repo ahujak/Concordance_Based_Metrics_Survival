@@ -1,5 +1,5 @@
 # Concordance Based Survival Metrics
-In this project, we implement joint concordance index (from https://arxiv.org/pdf/1810.11207.pdf) and concordance index (Wolbers et.al.). An application to compute joint cnocordance index is https://mlinterpreter.shinyapps.io/concordance/. 
+In this project, we implement joint concordance index (from the [paper](https://arxiv.org/pdf/1810.11207.pdf)) and concordance index (Wolbers et.al.). An app for computing joint cnocordance index is [here](https://mlinterpreter.shinyapps.io/concordance/). 
 
 Functions defined below can be found in New_Cindex_paper_upload.Rmd
 
