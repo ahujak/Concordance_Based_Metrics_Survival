@@ -18,7 +18,7 @@ Time: time horizon at which c-index is computed
 ### Output: 
 Concordance index
 
-## JCindex_estimator_combined: function to compute the concordance index (from https://arxiv.org/pdf/1810.11207.pdf)
+## JCindex_estimator_combined: function to compute the concordance index (from the [paper](https://arxiv.org/pdf/1810.11207.pdf))
 
 ### Input: 
 Prediction matrix: prediction vector for each event type stacked into a matrix, 
